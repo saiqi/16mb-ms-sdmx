@@ -1,5 +1,6 @@
 import logging
 import re
+import math
 import functools
 import itertools
 import hashlib
@@ -32,7 +33,7 @@ class SDMXCollectorError(Exception):
     pass
 
 
-class SDMXCollector(object):
+class SDMXCollectorService(object):
     name = 'sdmx_collector'
     database = MongoDatabase(result_backend=False)
     sdmx = SDMX()
@@ -51,8 +52,10 @@ class SDMXCollector(object):
         self.database['dataset'].create_index(
             [('provider', pymongo.ASCENDING), ('dataflow', pymongo.ASCENDING)])
         self.database['dataset'].create_index('id')
-        doc = {'provider': provider, 'dataflow': dataflow, 'id': SDMXCollector.table_name(provider, dataflow)}
+        _id = SDMXCollectorService.table_name(provider, dataflow)
+        doc = {'provider': provider, 'dataflow': dataflow, 'id': _id}
         self.database['dataset'].update_one(doc, {'$set': doc}, upsert=True)
+        return _id
 
     def get_dataflows(self):
         return self.database['dataset'].find({})
@@ -63,11 +66,11 @@ class SDMXCollector(object):
 
     @staticmethod
     def table_name(provider, dataflow):
-        return f'{SDMXCollector.clean(provider.lower())}_{SDMXCollector.clean(dataflow.lower())}'
+        return f'{SDMXCollectorService.clean(provider.lower())}_{SDMXCollectorService.clean(dataflow.lower())}'
 
     @staticmethod
     def to_table_meta(meta, provider, dataflow):
-        table_name = SDMXCollector.table_name(provider, dataflow)
+        table_name = SDMXCollectorService.table_name(provider, dataflow)
         dim_cl = [(d[0], d[2]) for d in meta['dimensions']]
 
         codelist = meta['codelist']
@@ -75,9 +78,11 @@ class SDMXCollector(object):
         def handle_dim_att(d):
             name, code = d
             cl = [c for c in codelist if c[0] == code]
+            if not cl:
+                return (SDMXCollectorService.clean(name.lower()), f'TEXT')
             size = functools.reduce(lambda x, y: len(
-                y[1]) if len(y[1]) > x else x, cl, 0)
-            return (SDMXCollector.clean(name.lower()), f'VARCHAR({size})')
+                y[1]) if len(y[1]) > x else x, cl, 1)
+            return (SDMXCollectorService.clean(name.lower()), f'VARCHAR({size})')
 
         table_meta = [handle_dim_att(d) for d in itertools.chain(
             dim_cl, meta['attributes']) if d[1]]
@@ -99,7 +104,7 @@ class SDMXCollector(object):
     def get_status(self, provider, dataflow, checksum):
         old = self.database['dataset'].find_one(
             {'provider': provider, 'dataflow': dataflow})
-        if not old:
+        if not old or 'checksum' not in old:
             return 'CREATED'
         if old['checksum'] == checksum:
             return 'UNCHANGED'
@@ -113,9 +118,23 @@ class SDMXCollector(object):
             'dimensions': self.sdmx.dimensions(),
             'attributes': self.sdmx.attributes()
         }
-        table_meta = SDMXCollector.to_table_meta(meta, provider, dataflow)
-        data = [r for r in self.sdmx.data()]
-        checksum = SDMXCollector.checksum(data)
+        table_meta = SDMXCollectorService.to_table_meta(
+            meta, provider, dataflow)
+        
+        def handle_number(m, v):
+            if m.lower() in ('float', 'double'):
+                try:
+                    d = float(v)
+                    if math.isnan(d):
+                        return None
+                    return d
+                except:
+                    return None
+            return v
+
+        data = [{k[0]: handle_number(k[1], r.get(k[0], None)) for k in table_meta['meta']}
+                for r in self.sdmx.data()]
+        checksum = SDMXCollectorService.checksum(data)
         return {
             'referential': {
                 'entities': [
@@ -140,7 +159,7 @@ class SDMXCollector(object):
             'id': table_meta['target_table'],
             'status': self.get_status(provider, dataflow, checksum),
             'meta': {
-                'type': SDMXCollector.clean(provider).lower(),
+                'type': SDMXCollectorService.clean(provider).lower(),
                 'source': 'sdmx'
             }
         }
@@ -155,8 +174,13 @@ class SDMXCollector(object):
         for f in self.get_dataflows():
             provider = f['provider']
             dataflow = f['dataflow']
-            _log.info(f'Downloading dataset {dataflow} provided by {provider} ...')
-            dataset = self.get_dataset(provider, dataflow)
+            _log.info(
+                f'Downloading dataset {dataflow} provided by {provider} ...')
+            try:
+                dataset = self.get_dataset(provider, dataflow)
+            except:
+                _log.error(f'Can not handle dataset {dataflow} provided by {provider}!')
+                continue
             _log.info('Publishing ...')
             self.pub_input(bson.json_util.dumps(dataset))
 
@@ -195,16 +219,17 @@ class SDMXCollector(object):
         _log.info('Received a related input config ...')
         if 'config' not in msg:
             _log.warning('No config within the message. Ignoring ...')
-        
+
         config = msg['config']
 
         if 'provider' not in config or 'dataflow' not in config:
-            _log.warning('Either provider or dataflow is missing within config')
+            _log.warning(
+                'Either provider or dataflow is missing within config')
 
-        self.add_dataflow(config['provider'], config['dataflow'])
+        id_ = self.add_dataflow(config['provider'], config['dataflow'])
 
         self.pub_notif(bson.json_util.dumps({
-            'id': ','.join([config['provider'], config['dataflow']]),
+            'id': id_,
             'source': msg['meta']['source'],
-            'type': msg['meta']['type'],
+            'type': '',
             'content': 'A new SDMX feed has been added.'}))

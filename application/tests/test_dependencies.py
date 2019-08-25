@@ -30,6 +30,7 @@ def test_insee_data():
     data = sdmx.data()
     first = next(data)
     assert isinstance(first, dict)
+    assert 'age' in first
 
 
 class DummyService(object):

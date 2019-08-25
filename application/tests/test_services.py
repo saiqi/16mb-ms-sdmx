@@ -1,4 +1,4 @@
-from application.services.sdmx_collector import SDMXCollector, SDMXCollectorError
+from application.services.sdmx_collector import SDMXCollectorService, SDMXCollectorError
 from nameko.testing.services import worker_factory
 from pymongo import MongoClient
 import pytest
@@ -17,7 +17,7 @@ def database():
 
 
 def test_add_dataflow(database):
-    service = worker_factory(SDMXCollector, database=database)
+    service = worker_factory(SDMXCollectorService, database=database)
 
     def mock_initialize(provider, dataflow):
         if provider != 'INSEE':
@@ -33,7 +33,7 @@ def test_add_dataflow(database):
 
 
 def test_get_dataset(database):
-    service = worker_factory(SDMXCollector, database=database)
+    service = worker_factory(SDMXCollectorService, database=database)
 
     def mock_codelist():
         return [
@@ -41,26 +41,27 @@ def test_get_dataset(database):
             ('CL_AGE', '10', 'desc'),
             ('CL_INDICATEUR', 'XY', 'desc'),
             ('CL_INDICATEUR', 'Y', 'desc'),
-            ('CL_OBS_TYPE', 'DEF', 'desc')
+            ('CL_OBS_TYPE', 'DEF', 'desc'),
         ]
     service.sdmx.codelist.side_effect = mock_codelist
 
     def mock_attributes():
         return [
-            ('OBS_TYPE', 'CL_OBS_TYPE'),
-            ('OTHER', None)
+            ('obs_type', 'CL_OBS_TYPE'),
+            ('other', None)
         ]
     service.sdmx.attributes.side_effect = mock_attributes
 
     def mock_dimensions():
         return [
-            ('AGE', 'desc', 'CL_AGE'),
-            ('INDICATEUR', 'desc', 'CL_INDICATEUR')
+            ('age', 'desc', 'CL_AGE'),
+            ('indicateur', 'desc', 'CL_INDICATEUR'),
+            ('unknown', 'desc', 'CL_DIM')
         ]
     service.sdmx.dimensions.side_effect = mock_dimensions
 
     def mock_data():
-        return ([{'AGE': '0', 'INDICATEUR': 'XY', 'dim': '2019-Q4', 'value': '35'} for r in range(5)])
+        return ([{'age': '0', 'indicateur': 'XY', 'dim': '2019-Q4', 'value': '35' if r > 0 else 'NaN'} for r in range(5)])
     service.sdmx.data.side_effect = mock_data
 
     dataset = service.get_dataset('INSEE', 'MY-DATASET')
@@ -79,10 +80,23 @@ def test_get_dataset(database):
     datastore = dataset['datastore']
     assert isinstance(datastore, list)
     assert datastore[0]['target_table'] == 'insee_my_dataset'
+    records = datastore[0]['records']
+    assert isinstance(records, list)
+    assert isinstance(records[0], dict)
+    assert 'age' in records[0]
+    assert records[0]['age'] == '0'
+    assert 'indicateur' in records[0]
+    assert 'dim' in records[0]
+    assert 'value' in records[0]
+    assert records[0]['value'] is None
+    assert 'unknown' in records[0]
+    assert records[0]['unknown'] is None
 
     meta = datastore[0]['meta']
     age = next(filter(lambda x: x[0] == 'age', meta))
     assert age[1] == 'VARCHAR(2)'
+    unknown = next(filter(lambda x: x[0] == 'unknown', meta))
+    assert unknown[1] == 'TEXT'
 
     referential = dataset['referential']
     assert referential['entities']
