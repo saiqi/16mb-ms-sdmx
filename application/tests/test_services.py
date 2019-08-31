@@ -19,17 +19,17 @@ def database():
 def test_add_dataflow(database):
     service = worker_factory(SDMXCollectorService, database=database)
 
-    def mock_initialize(provider, dataflow):
-        if provider != 'INSEE':
+    def mock_initialize(root_url, agency, resource, version, kind, keys):
+        if agency != 'INSEE':
             raise ValueError('Unknown provider!')
         return
     service.sdmx.initialize.side_effect = mock_initialize
 
-    service.add_dataflow('INSEE', 'DATAFLOW')
-    assert service.database.dataset.find_one({'provider': 'INSEE'})
+    service.add_dataflow('http://foo.bar', 'INSEE', 'DATAFLOW', '2.1', 'specific', {})
+    assert service.database.dataset.find_one({'agency': 'INSEE'})
 
     with pytest.raises(SDMXCollectorError):
-        service.add_dataflow('?', '?')
+        service.add_dataflow('http://foo.bar', '?', '?', '2.1', 'specific', {})
 
 
 def test_get_dataset(database):
@@ -54,17 +54,25 @@ def test_get_dataset(database):
 
     def mock_dimensions():
         return [
-            ('age', 'desc', 'CL_AGE'),
-            ('indicateur', 'desc', 'CL_INDICATEUR'),
-            ('unknown', 'desc', 'CL_DIM')
+            ('AGE', 'CL_AGE'),
+            ('indicateur', 'CL_INDICATEUR'),
+            ('unknown', 'CL_DIM')
         ]
     service.sdmx.dimensions.side_effect = mock_dimensions
 
+    def mock_primary_measure():
+        return 'obs_value'
+    service.sdmx.primary_measure.side_effect = mock_primary_measure
+
+    def mock_time_dimension():
+        return 'time_dimension'
+    service.sdmx.time_dimension.side_effect = mock_time_dimension
+
     def mock_data():
-        return ([{'age': '0', 'indicateur': 'XY', 'dim': '2019-Q4', 'value': '35' if r > 0 else 'NaN'} for r in range(5)])
+        return ([{'AGE': '0', 'indicateur': 'XY', 'time_dimension': '2019-Q4', 'obs_value': '35' if r > 0 else 'NaN'} for r in range(5)])
     service.sdmx.data.side_effect = mock_data
 
-    dataset = service.get_dataset('INSEE', 'MY-DATASET')
+    dataset = service.get_dataset('http://foo.bar', 'INSEE', 'MY-DATASET', '2.1', 'specific', {})
     assert 'referential' in dataset
     assert 'datastore' in dataset
     assert 'checksum' in dataset
@@ -83,17 +91,18 @@ def test_get_dataset(database):
     records = datastore[0]['records']
     assert isinstance(records, list)
     assert isinstance(records[0], dict)
-    assert 'age' in records[0]
-    assert records[0]['age'] == '0'
+    assert 'AGE' in records[0]
+    assert records[0]['AGE'] == '0'
     assert 'indicateur' in records[0]
-    assert 'dim' in records[0]
-    assert 'value' in records[0]
-    assert records[0]['value'] is None
+    assert 'obs_value' in records[0]
+    assert 'time_dimension' in records[0]
+    assert 'query' in records[0]
+    assert records[0]['obs_value'] is None
     assert 'unknown' in records[0]
     assert records[0]['unknown'] is None
 
     meta = datastore[0]['meta']
-    age = next(filter(lambda x: x[0] == 'age', meta))
+    age = next(filter(lambda x: x[0] == 'AGE', meta))
     assert age[1] == 'VARCHAR(2)'
     unknown = next(filter(lambda x: x[0] == 'unknown', meta))
     assert unknown[1] == 'TEXT'

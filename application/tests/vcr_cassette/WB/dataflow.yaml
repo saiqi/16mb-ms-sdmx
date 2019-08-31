@@ -1,0 +1,60 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.22.0
+    method: GET
+    uri: http://api.worldbank.org/v2/sdmx/rest/dataflow/WB
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<!--DDP Web Service v5.2.3-->\r\
+        \n<Structure xmlns=\"http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message\"\
+        >\r\n  <Header>\r\n    <ID>IDREF2</ID>\r\n    <Test>false</Test>\r\n    <Prepared>2019-08-25T10:19:51.455589-04:00</Prepared>\r\
+        \n    <Sender id=\"Unknown\" />\r\n    <Receiver id=\"Unknown\" />\r\n  </Header>\r\
+        \n  <Structures>\r\n    <Dataflows xmlns=\"http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure\"\
+        >\r\n      <Dataflow id=\"WDI\" urn=\"urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=WB:WDI(1.0)\"\
+        \ agencyID=\"WB\" version=\"1.0\" isFinal=\"true\">\r\n        <Name xml:lang=\"\
+        en\" xmlns=\"http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common\">World\
+        \ Development Indicators</Name>\r\n        <Structure>\r\n          <Ref id=\"\
+        WDI\" version=\"1.0\" agencyID=\"WB\" package=\"datastructure\" class=\"DataStructure\"\
+        \ xmlns=\"\" />\r\n        </Structure>\r\n      </Dataflow>\r\n    </Dataflows>\r\
+        \n  </Structures>\r\n</Structure>"
+    headers:
+      Cache-Control:
+      - private
+      Connection:
+      - keep-alive
+      Content-Disposition:
+      - attachment;filename=dataflow_wb.xml
+      Content-Type:
+      - text/xml; charset=UTF-8
+      Date:
+      - Sun, 25 Aug 2019 14:58:51 GMT
+      Set-Cookie:
+      - TS019266c8=017189f947789c61ebd4a26f544d800e95f1f976b7ecc76995fd69d5debe547a1f81b00b94;
+        Path=/
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      X-AspNet-Version:
+      - 4.0.30319
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1

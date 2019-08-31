@@ -1,0 +1,129 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.22.0
+    method: GET
+    uri: http://ec.europa.eu/eurostat/SDMX/diss-web/rest/datastructure/ESTAT/DSD_nama_10_gdp
+  response:
+    body:
+      string: !!binary |
+        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
+        AAeyKSDXkAAA
+    headers:
+      Access-Control-Allow-Methods:
+      - GET, POST, OPTIONS
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - close
+      Content-Disposition:
+      - attachment; filename="DSD_nama_10_gdp_latest_ESTAT_references=none_detail=full.xml";
+        creation-date="Sat, 31 Aug 2019 11:23:52 GMT"
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/vnd.sdmx.structure+xml; version=2.1
+      Date:
+      - Sat, 31 Aug 2019 11:23:52 GMT
+      Server:
+      - Europa
+      Vary:
+      - Accept
+    status:
+      code: 200
+      message: OK
+version: 1

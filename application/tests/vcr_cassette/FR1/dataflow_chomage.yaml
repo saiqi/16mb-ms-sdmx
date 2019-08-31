@@ -1,0 +1,55 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.22.0
+    method: GET
+    uri: https://bdm.insee.fr/series/sdmx/dataflow/FR1/CHOMAGE-TRIM-NATIONAL
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAAJ1V207bQBB95ytW+wQq8S2UECsxClCKJQhVCM9osSfEwrub7q5J+J2+8d4/yI91
+        15fENqFqkaxYM+OZOd5zTjw4XdEUvYCQCWdD7FoORsAiHifsaYjvp5edE3wa7A0oSP9OiSxSmQCk
+        e5j0dW6I50otfNteLpeWjOnK4uLJFiB5JiKQtknR1JbRHCiR9ov34Nq6TZInwOWUiNPPTNFtlLNq
+        iFTiM0Nk9UY42EMof8krIDEIE5aJ8CKIiSKzlC/lw/nV7c3o+7fOdBLedMajaXg7Hl0/uF+Pe27/
+        xDlyut3ewC67tiOmIFUwI6mEopjH2/IPAQsiIA48x+13nJNO15l6nn/U8z3H0hO/OJ7vOEXr5tlt
+        +x0wjRgl8RBfTlxcVHRNn5A/JjRny0+J4XMmcBAyqRKVKcSI0pyTFMWAUoKk0rEu/cwAgdJJidZv
+        KivuEWecmpIc2NXcEoK9xVADNYEIkpcSVsaeGV8ybNdR57S0sJ0RZtZrQDFnbP2md1MSCd5pItj2
+        57TZTd6aWpXlTk21f1HxuDmjejaHupNgjDKhzaF/fKMiXwurUFjCZpzyGFLLSGSjJqsaOdSE+DtH
+        7munHWCkfcCi1/CioK7pwwpkSeWIMa5yyuS28q5WL70r3k+uA2MSWbokYRLAmglbXzX6tVdAJPrm
+        Ol33uNf3ugXpzUF1DPbHIP4H3xRWqqWIMaePIleEXL8ZUMhHfae90DT+G6B2RbZOeYdhzufr31QT
+        dYgUyVYGSlRmkLYikrDKDbP+pRP7EphEZ+H0oO2TjzYAw8E9A7pI+SsFpg5RVouQIAoQYTGak5Sj
+        x1ezLo/N+v3w+nb3IqPrjQUaJzOB2d+E3vwStOS5INGzTg1xQ+0YRSmR+lNgVL9ZWpm9OPSdeIp0
+        5ZXq7+SdUUu/1wzdygR/ACzR9zrFBgAA
+    headers:
+      Access-Control-Allow-Methods:
+      - GET, OPTIONS, HEAD
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - Keep-Alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '708'
+      Content-Type:
+      - application/xml
+      Date:
+      - Fri, 30 Aug 2019 20:47:20 GMT
+      Keep-Alive:
+      - timeout=5, max=99
+      Server:
+      - unknown
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 200
+      message: ''
+version: 1

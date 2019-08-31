@@ -43,18 +43,26 @@ class SDMXCollectorService(object):
     pub_notif = Publisher(exchange=Exchange(
         name='all_notifications', type='topic', durable=True, auto_delete=True, delivery_mode=PERSISTENT))
 
-    def add_dataflow(self, provider, dataflow):
+    def add_dataflow(self, root_url, agency_id, resource_id, version, kind, keys):
         try:
-            self.sdmx.initialize(provider, dataflow)
-            self.sdmx.name
+            self.sdmx.initialize(root_url, agency_id, resource_id, version, kind, keys)
         except Exception as e:
             raise SDMXCollectorError(str(e))
         self.database['dataset'].create_index(
-            [('provider', pymongo.ASCENDING), ('dataflow', pymongo.ASCENDING)])
+            [('agency', pymongo.ASCENDING), ('resource', pymongo.ASCENDING)])
         self.database['dataset'].create_index('id')
-        _id = SDMXCollectorService.table_name(provider, dataflow)
-        doc = {'provider': provider, 'dataflow': dataflow, 'id': _id}
-        self.database['dataset'].update_one(doc, {'$set': doc}, upsert=True)
+        _id = SDMXCollectorService.table_name(agency_id, resource_id)
+        doc = {
+            'agency': agency_id,
+            'resource': resource_id,
+            'id': _id,
+            'version': version,
+            'kind': kind,
+            'keys': keys or {},
+            'root_url': root_url
+        }
+        self.database['dataset'].update_one(
+            {'agency': agency_id, 'resource': resource_id}, {'$set': doc}, upsert=True)
         return _id
 
     def get_dataflows(self):
@@ -71,7 +79,6 @@ class SDMXCollectorService(object):
     @staticmethod
     def to_table_meta(meta, provider, dataflow):
         table_name = SDMXCollectorService.table_name(provider, dataflow)
-        dim_cl = [(d[0], d[2]) for d in meta['dimensions']]
 
         codelist = meta['codelist']
 
@@ -79,21 +86,25 @@ class SDMXCollectorService(object):
             name, code = d
             cl = [c for c in codelist if c[0] == code]
             if not cl:
-                return (SDMXCollectorService.clean(name.lower()), f'TEXT')
+                return (SDMXCollectorService.clean(name), f'TEXT')
             size = functools.reduce(lambda x, y: len(
                 y[1]) if len(y[1]) > x else x, cl, 1)
-            return (SDMXCollectorService.clean(name.lower()), f'VARCHAR({size})')
+            return (SDMXCollectorService.clean(name), f'VARCHAR({size})')
 
         table_meta = [handle_dim_att(d) for d in itertools.chain(
-            dim_cl, meta['attributes']) if d[1]]
-        table_meta.append(('dim', 'VARCHAR(20)'))
-        table_meta.append(('value', 'FLOAT'))
+            meta['dimensions'], meta['attributes']) if d[1]]
+        table_meta.append(
+            (SDMXCollectorService.clean(meta['time_dimension']), 'VARCHAR(20)'))
+        table_meta.append(
+            (SDMXCollectorService.clean(meta['primary_measure']), 'FLOAT'))
+        table_meta.append(('query', 'VARCHAR(250)'))
 
         return {
-            'write_policy': 'truncate_bulk_insert',
+            'write_policy': 'delete_bulk_insert',
             'meta': table_meta,
             'target_table': table_name,
-            'chunk_size': 500
+            'chunk_size': 500,
+            'delete_keys': {'query': meta['query']}
         }
 
     @staticmethod
@@ -110,16 +121,19 @@ class SDMXCollectorService(object):
             return 'UNCHANGED'
         return 'UPDATED'
 
-    def get_dataset(self, provider, dataflow):
-        self.sdmx.initialize(provider, dataflow)
+    def get_dataset(self, root_url, agency, resource, version, kind, keys):
+        self.sdmx.initialize(root_url, agency, resource, version, kind, keys)
         meta = {
             'name': self.sdmx.name(),
             'codelist': self.sdmx.codelist(),
             'dimensions': self.sdmx.dimensions(),
-            'attributes': self.sdmx.attributes()
+            'attributes': self.sdmx.attributes(),
+            'primary_measure': self.sdmx.primary_measure(),
+            'time_dimension': self.sdmx.time_dimension(),
+            'query': self.sdmx.query()
         }
         table_meta = SDMXCollectorService.to_table_meta(
-            meta, provider, dataflow)
+            meta, agency, resource)
         
         def handle_number(m, v):
             if m.lower() in ('float', 'double'):
@@ -132,7 +146,9 @@ class SDMXCollectorService(object):
                     return None
             return v
 
-        data = [{k[0]: handle_number(k[1], r.get(k[0], None)) for k in table_meta['meta']}
+        data = [{k[0]: handle_number(k[1], r.get(k[0], None)
+                if k[0] != 'query' else meta['query'])
+                for k in table_meta['meta']}
                 for r in self.sdmx.data()]
         checksum = SDMXCollectorService.checksum(data)
         return {
@@ -146,7 +162,8 @@ class SDMXCollectorService(object):
                         'informations': {
                             'id': table_meta['target_table'],
                             'name': meta['name'],
-                            'table': table_meta['target_table']
+                            'table': table_meta['target_table'],
+                            'structure': meta
                         }
                     }
                 ]
@@ -157,9 +174,9 @@ class SDMXCollectorService(object):
             }],
             'checksum': checksum,
             'id': table_meta['target_table'],
-            'status': self.get_status(provider, dataflow, checksum),
+            'status': self.get_status(agency, resource, checksum),
             'meta': {
-                'type': SDMXCollectorService.clean(provider).lower(),
+                'type': SDMXCollectorService.clean(agency).lower(),
                 'source': 'sdmx'
             }
         }
@@ -172,14 +189,18 @@ class SDMXCollectorService(object):
     @rpc
     def publish(self):
         for f in self.get_dataflows():
-            provider = f['provider']
-            dataflow = f['dataflow']
+            agency = f['agency']
+            resource = f['resource']
+            root_url = f['root_url']
+            version = f['version']
+            kind = f['kind']
+            keys = f['keys']
             _log.info(
-                f'Downloading dataset {dataflow} provided by {provider} ...')
+                f'Downloading dataset {resource} provided by {agency} ...')
             try:
-                dataset = self.get_dataset(provider, dataflow)
+                dataset = self.get_dataset(root_url, agency, resource, version, kind, keys)
             except:
-                _log.error(f'Can not handle dataset {dataflow} provided by {provider}!')
+                _log.error(f'Can not handle dataset {resource} provided by {agency}!')
                 continue
             _log.info('Publishing ...')
             self.pub_input(bson.json_util.dumps(dataset))
@@ -219,17 +240,23 @@ class SDMXCollectorService(object):
         _log.info('Received a related input config ...')
         if 'config' not in msg:
             _log.warning('No config within the message. Ignoring ...')
+            return
 
         config = msg['config']
 
-        if 'provider' not in config or 'dataflow' not in config:
-            _log.warning(
-                'Either provider or dataflow is missing within config')
+        if 'agency' not in config or 'resource' not in config or\
+            'version' not in config or 'kind' not in config or 'keys' not in config\
+                or 'root_url' not in config:
+            _log.error(
+                'Missing at least one of these mandatory fields: root_url, provider, resource, version, kind or keys')
+            return
 
-        id_ = self.add_dataflow(config['provider'], config['dataflow'])
+        id_ = self.add_dataflow(
+            config['root_url'], config['agency'], config['resource'], config['version'], config['kind'], config['keys'])
 
         self.pub_notif(bson.json_util.dumps({
             'id': id_,
             'source': msg['meta']['source'],
             'type': '',
             'content': 'A new SDMX feed has been added.'}))
+        self.publish()

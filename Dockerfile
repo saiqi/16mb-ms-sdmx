@@ -4,7 +4,7 @@ RUN mkdir /service
 WORKDIR /service
 
 ADD ./requirements.txt .
-RUN apk add --no-cache gcc musl-dev build-base libxml2-dev libxslt-dev ; pip install -r requirements.txt
+RUN apk add --no-cache gcc musl-dev libxml2-dev libxslt-dev ; pip install -r requirements.txt
 
 ADD application /service/application
 ADD ./cluster.yml /service
