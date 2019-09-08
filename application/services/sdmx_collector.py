@@ -108,13 +108,27 @@ class SDMXCollectorService(object):
         }
 
     @staticmethod
+    def codelist_table_meta(agency):
+        return {
+            'write_policy': 'upsert',
+            'meta': [
+                ('code_id', 'VARCHAR(250)'),
+                ('id', 'VARCHAR(250)'),
+                ('code_name', 'TEXT'),
+                ('name', 'TEXT')
+            ],
+            'target_table': f'{SDMXCollectorService.clean(agency).lower()}_codelist',
+            'upsert_key': 'id'
+        }
+
+    @staticmethod
     def checksum(data):
         return hashlib.md5(
             ''.join([str(r) for r in data]).encode('utf-8')).hexdigest()
 
     def get_status(self, provider, dataflow, checksum):
         old = self.database['dataset'].find_one(
-            {'provider': provider, 'dataflow': dataflow})
+            {'agency': provider, 'resource': dataflow})
         if not old or 'checksum' not in old:
             return 'CREATED'
         if old['checksum'] == checksum:
@@ -150,6 +164,11 @@ class SDMXCollectorService(object):
                 if k[0] != 'query' else meta['query'])
                 for k in table_meta['meta']}
                 for r in self.sdmx.data()]
+
+        codelist_meta = SDMXCollectorService.codelist_table_meta(agency)
+        codelist = [dict(zip(
+            [m[0] for m in codelist_meta['meta']], r)) for r in meta['codelist']]
+
         checksum = SDMXCollectorService.checksum(data)
         return {
             'referential': {
@@ -168,10 +187,16 @@ class SDMXCollectorService(object):
                     }
                 ]
             },
-            'datastore': [{
-                **table_meta,
-                'records': data
-            }],
+            'datastore': [
+                {
+                    **table_meta,
+                    'records': data
+                },
+                {
+                    **codelist_meta,
+                    'records': codelist
+                }
+            ],
             'checksum': checksum,
             'id': table_meta['target_table'],
             'status': self.get_status(agency, resource, checksum),
@@ -248,7 +273,7 @@ class SDMXCollectorService(object):
             'version' not in config or 'kind' not in config or 'keys' not in config\
                 or 'root_url' not in config:
             _log.error(
-                'Missing at least one of these mandatory fields: root_url, provider, resource, version, kind or keys')
+                'Missing at least one of these mandatory fields: root_url, agency, resource, version, kind or keys')
             return
 
         id_ = self.add_dataflow(

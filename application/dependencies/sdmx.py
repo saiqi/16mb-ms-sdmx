@@ -192,7 +192,11 @@ class SDMXML(object):
                 return (
                     id_, 
                     code.attrib['id'], 
-                    node.xpath(f'./{self.com_prefix}:Name[@xml:lang="en"][1]', namespaces=self.structure_namespaces)[0].text)
+                    node.xpath(
+                        f'./{self.com_prefix}:Name[@xml:lang="en"][1]', namespaces=self.structure_namespaces)[0].text,
+                    code.xpath(
+                        f'./{self.com_prefix}:Name[@xml:lang="en"][1]', namespaces=self.structure_namespaces)[0].text
+                )
             return [handle_code(c) for c in node.xpath(f'./{self.str_prefix}:Code', namespaces=self.structure_namespaces)]
 
         if codelists:
