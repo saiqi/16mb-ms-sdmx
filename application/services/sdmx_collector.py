@@ -135,6 +135,16 @@ class SDMXCollectorService(object):
             return 'UNCHANGED'
         return 'UPDATED'
 
+    @staticmethod
+    def dataflow_to_entity(df):
+        return {
+            'id': df['id'],
+            'common_name': df['name'],
+            'provider': 'sdmx',
+            'type': 'dataflow',
+            'informations': df
+        }
+
     def get_dataset(self, root_url, agency, resource, version, kind, keys):
         self.sdmx.initialize(root_url, agency, resource, version, kind, keys)
         meta = {
@@ -181,10 +191,10 @@ class SDMXCollectorService(object):
                         'informations': {
                             'id': table_meta['target_table'],
                             'name': meta['name'],
-                            'table': table_meta['target_table'],
-                            'structure': meta
+                            'table': table_meta['target_table']
                         }
-                    }
+                    },
+                    *[SDMXCollectorService.dataflow_to_entity(d) for d in self.sdmx.agency_dataflows]
                 ]
             },
             'datastore': [
@@ -224,8 +234,8 @@ class SDMXCollectorService(object):
                 f'Downloading dataset {resource} provided by {agency} ...')
             try:
                 dataset = self.get_dataset(root_url, agency, resource, version, kind, keys)
-            except:
-                _log.error(f'Can not handle dataset {resource} provided by {agency}!')
+            except Exception as e:
+                _log.error(f'Can not handle dataset {resource} provided by {agency}: {str(e)}')
                 continue
             _log.info('Publishing ...')
             self.pub_input(bson.json_util.dumps(dataset))
