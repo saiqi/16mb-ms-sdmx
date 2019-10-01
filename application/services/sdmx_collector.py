@@ -115,10 +115,11 @@ class SDMXCollectorService(object):
                 ('code_id', 'VARCHAR(250)'),
                 ('id', 'VARCHAR(250)'),
                 ('code_name', 'TEXT'),
-                ('name', 'TEXT')
+                ('name', 'TEXT'),
+                ('ref', 'VARCHAR(32)')
             ],
             'target_table': f'{SDMXCollectorService.clean(agency).lower()}_codelist',
-            'upsert_key': 'id'
+            'upsert_key': 'ref'
         }
 
     @staticmethod
@@ -176,8 +177,12 @@ class SDMXCollectorService(object):
                 for r in self.sdmx.data()]
 
         codelist_meta = SDMXCollectorService.codelist_table_meta(agency)
+
+        def hash_row(row):
+            h = hashlib.md5(str(row).encode('utf-8'))
+            return h.hexdigest()
         codelist = [dict(zip(
-            [m[0] for m in codelist_meta['meta']], r)) for r in meta['codelist']]
+            [m[0] for m in codelist_meta['meta']], r + (hash_row(r[0:2]),))) for r in meta['codelist']]
 
         checksum = SDMXCollectorService.checksum(data)
         return {

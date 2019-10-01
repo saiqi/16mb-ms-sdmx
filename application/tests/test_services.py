@@ -37,11 +37,11 @@ def test_get_dataset(database):
 
     def mock_codelist():
         return [
-            ('CL_AGE', '0', 'desc'),
-            ('CL_AGE', '10', 'desc'),
-            ('CL_INDICATEUR', 'XY', 'desc'),
-            ('CL_INDICATEUR', 'Y', 'desc'),
-            ('CL_OBS_TYPE', 'DEF', 'desc'),
+            ('CL_AGE', '0', 'desc', 'foo'),
+            ('CL_AGE', '10', 'desc', 'foo'),
+            ('CL_INDICATEUR', 'XY', 'desc', 'foo'),
+            ('CL_INDICATEUR', 'Y', 'desc', 'foo'),
+            ('CL_OBS_TYPE', 'DEF', 'desc', 'foo'),
         ]
     service.sdmx.codelist.side_effect = mock_codelist
 
@@ -100,6 +100,9 @@ def test_get_dataset(database):
     assert records[0]['obs_value'] is None
     assert 'unknown' in records[0]
     assert records[0]['unknown'] is None
+    assert datastore[1]['target_table'] == 'insee_codelist'
+    assert len(datastore[1]['records'][0]) == 5
+    assert 'ref' in datastore[1]['records'][0]
 
     meta = datastore[0]['meta']
     age = next(filter(lambda x: x[0] == 'AGE', meta))
