@@ -82,17 +82,20 @@ class SDMXCollectorService(object):
 
         codelist = meta['codelist']
 
-        def handle_dim_att(d):
+        def handle_dim_att(d, is_dim = True):
             name, code = d
             cl = [c for c in codelist if c[0] == code]
             if not cl:
-                return (SDMXCollectorService.clean(name), f'TEXT')
-            size = functools.reduce(lambda x, y: len(
-                y[1]) if len(y[1]) > x else x, cl, 1)
+                return (SDMXCollectorService.clean(name), 'TEXT')
+            if is_dim:
+                size = functools.reduce(lambda x, y: len(
+                    y[1]) if len(y[1]) > x else x, cl, 1)
+                return (SDMXCollectorService.clean(name), f'VARCHAR({size})')
+            size = functools.reduce(lambda x, y: x + len(y[1]), cl, 0)
             return (SDMXCollectorService.clean(name), f'VARCHAR({size})')
 
-        table_meta = [handle_dim_att(d) for d in itertools.chain(
-            meta['dimensions'], meta['attributes']) if d[1]]
+        table_meta = [handle_dim_att(d) for d in meta['dimensions'] if d[1]]
+        table_meta = table_meta + [handle_dim_att(d, is_dim=False) for d in meta['attributes'] if d[1]]
         table_meta.append(
             (SDMXCollectorService.clean(meta['time_dimension']), 'VARCHAR(20)'))
         table_meta.append(

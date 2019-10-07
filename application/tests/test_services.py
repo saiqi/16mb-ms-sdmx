@@ -42,6 +42,7 @@ def test_get_dataset(database):
             ('CL_INDICATEUR', 'XY', 'desc', 'foo'),
             ('CL_INDICATEUR', 'Y', 'desc', 'foo'),
             ('CL_OBS_TYPE', 'DEF', 'desc', 'foo'),
+            ('CL_OBS_TYPE', 'Z', 'desc', 'foo')
         ]
     service.sdmx.codelist.side_effect = mock_codelist
 
@@ -107,6 +108,8 @@ def test_get_dataset(database):
     meta = datastore[0]['meta']
     age = next(filter(lambda x: x[0] == 'AGE', meta))
     assert age[1] == 'VARCHAR(2)'
+    obs_type = next(filter(lambda x: x[0] == 'obs_type', meta))
+    assert obs_type[1] == 'VARCHAR(4)'
     unknown = next(filter(lambda x: x[0] == 'unknown', meta))
     assert unknown[1] == 'TEXT'
 
