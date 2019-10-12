@@ -144,7 +144,7 @@ class SDMXCollectorService(object):
         return {
             'id': df['id'],
             'common_name': df['name'],
-            'provider': 'sdmx',
+            'provider': df['structure']['agency_id'],
             'type': 'dataflow',
             'informations': df
         }
